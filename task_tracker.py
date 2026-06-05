@@ -1,7 +1,39 @@
-import sys
+import argparse
 import json
+import sys
 import time
 
+parser = argparse.ArgumentParser(description="CLI for managing tasks")
+
+subparsers = parser.add_subparsers(dest="action", required=True)
+
+add_parser = subparsers.add_parser("add", help="Add a new task")
+add_parser.add_argument("description", type=str, help="The text description of a task")
+
+delete_parser = subparsers.add_parser("delete", help="Delete a task")
+delete_parser.add_argument("id", type=int, help="ID of a specific task")
+
+update_parser = subparsers.add_parser("update", help="Update a description of a task")
+update_parser.add_argument("id", type=int, help="ID of a task to update")
+update_parser.add_argument("description", type=str, help="The new desctiption of a task")
+
+list_parser = subparsers.add_parser("list", help="List all tasks")
+list_parser.add_argument(
+    "status",
+    nargs="?",
+    choices=["todo", "in-progress", "done"],
+    help="Optional: filter tasks by status"
+)
+
+mark_parser = subparsers.add_parser("mark", help="Change status of a task")
+mark_parser.add_argument("id", type=int, help="ID of a task to update")
+mark_parser.add_argument(
+    "status",
+    choices=["todo", "in-progress", "done"],
+    help="The new status for the task"
+)
+
+args = parser.parse_args()
 
 try:
     with open("tasks.json", "r", encoding="utf-8") as file:
@@ -20,27 +52,15 @@ except (FileNotFoundError, json.decoder.JSONDecodeError):
     
     print("tasks.json created")
 
-
-if len(sys.argv) < 2:
-    print("please provide actions")
-    sys.exit(1)
-
-
-action = sys.argv[1].lower()
 modified = False
     
-if action == "add":
+if args.action == "add":
 
-    if len(sys.argv) < 3:
-        print("ERROR: missing description")
-        sys.exit(1)
-
-    description = sys.argv[2]
     id = data["next_id"]
 
     data["tasks"][id] = {}
 
-    data["tasks"][id]["description"] = description
+    data["tasks"][id]["description"] = args.description
     data["tasks"][id]["status"] = "todo"
     data["tasks"][id]["created_at"] = time.ctime()
     data["tasks"][id]["updated_at"] = time.ctime()
@@ -49,17 +69,9 @@ if action == "add":
     modified = True
     print("SUCCESS: task added")
 
-elif action == "delete":
+elif args.action == "delete":
 
-    if len(sys.argv) < 3:
-        print("ERROR: missing ID ")
-        sys.exit(1)
-
-    id = sys.argv[2]
-
-    if not id.isdigit():
-        print("ERROR: not valid ID")
-        sys.exit(1)
+    id = str(args.id)
 
     if data["tasks"].pop(id, None) is not None:
         print(f"SUCCESS: task {id} removed")
@@ -68,23 +80,10 @@ elif action == "delete":
     else:
         print(f"Error: task {id} not found")
 
-elif action == "update":
+elif args.action == "update":
     
-    if len(sys.argv) < 3:
-        print("ERROR: missing ID")
-        sys.exit(1)
-
-    id = sys.argv[2]
-
-    if not id.isdigit():
-        print("ERROR: not valid ID")
-        sys.exit(1)
-
-    if len(sys.argv) < 4:
-        print("ERROR: missing description")
-        sys.exit(1)
-
-    description = sys.argv[3]
+    id = str(args.id)
+    description = args.description
 
     if data["tasks"].get(id, None) is not None:
         data["tasks"][id]["description"] = description
@@ -96,69 +95,61 @@ elif action == "update":
     else:
         print(f"ERROR: task {id} not found")            
 
-elif action == "list":
+elif args.action == "list":
 
-    if len(sys.argv) < 3:
+    status = args.status
+
+    if status == None:
         for id in data["tasks"]:
             description = data["tasks"][id].get("description")
             print(f"[{id}] {description}")
-        sys.exit(0)
 
-    option = sys.argv[2]
-
-    if option == "todo":
+    elif status == "todo":
         for id in data["tasks"]:
             if data["tasks"][id].get("status") == "todo":
                 description = data["tasks"][id].get("description")
                 print(f"[{id}] {description}")
 
-    elif option == "in-progress":
+    elif status == "in-progress":
         for id in data["tasks"]:
             if data["tasks"][id].get("status") == "in-progress":
                 description = data["tasks"][id].get("description")
                 print(f"[{id}] {description}")
 
-    elif option == "done":
+    elif status == "done":
         for id in data["tasks"]:
             if data["tasks"][id].get("status") == "done":
                 description = data["tasks"][id].get("description")
                 print(f"[{id}] {description}")
 
-elif action.startswith("mark"):
+elif args.action == "mark":
     
-    if len(sys.argv) < 3:
-        print("ERROR: missing ID")
+    id = str(args.id)
+
+    if data["tasks"].get(id, None) is None:
+        print(f"Error: task {id} not found")
         sys.exit(1)
 
-    id = sys.argv[2]
-
-    if not id.isdigit():
-        print("ERROR: not valid ID")
-        sys.exit(1)
-
-    if id not in data["tasks"]:
-        print(f"ERROR: task {id} not found")
-        sys.exit(1)
-
-    if action.endswith("-in-progress"):
+    if args.status == "in-progress":
         data["tasks"][id]["status"] = "in-progress"
         data["tasks"][id]["updated_at"] = time.ctime()
         modified = True
         
         print(f"SUCCESS: task {id} status changed to 'in-progress'")
 
-    elif action.endswith("-done"):
+    elif args.status == "done":
         data["tasks"][id]["status"] = "done"
         data["tasks"][id]["updated_at"] = time.ctime()
         modified = True
 
         print(f"SUCCESS: task {id} status changed to 'done'")
 
-    else:
-        print("ERROR: wrong option")    
+    elif args.status == "todo":
+        data["tasks"][id]["status"] = "todo"
+        data["tasks"][id]["updated_at"] = time.ctime()
+        modified = True
 
-else:
-    print("ERROR: wrong action")
+        print(f"SUCCESS: task {id} status changed to 'todo'")
 
 if modified:
     with open("tasks.json", "w", encoding="utf-8") as file:
