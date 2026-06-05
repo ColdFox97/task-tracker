@@ -90,7 +90,7 @@ elif action == "update":
         data["tasks"][id]["description"] = description
         data["tasks"][id]["updated_at"] = time.ctime()
         modified = True
-
+        
         print(f"SUCCESS: task {id} updated")
 
     else:
@@ -144,11 +144,16 @@ elif action.startswith("mark"):
         data["tasks"][id]["status"] = "in-progress"
         data["tasks"][id]["updated_at"] = time.ctime()
         modified = True
+        
+        print(f"SUCCESS: task {id} status changed to 'in-progress'")
 
     elif action.endswith("-done"):
         data["tasks"][id]["status"] = "done"
         data["tasks"][id]["updated_at"] = time.ctime()
-        modified = True           
+        modified = True
+
+        print(f"SUCCESS: task {id} status changed to 'done'")
+
     else:
         print("ERROR: wrong option")    
 
